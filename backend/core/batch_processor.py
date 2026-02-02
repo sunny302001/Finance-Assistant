@@ -18,7 +18,10 @@ from datetime import datetime
 
 from .bank_templates import TemplateDetector, BankTemplate
 from .sanitizer import sanitize_transaction_string, batch_sanitize, validate_sanitization
-from .ai_clients import GeminiClient, OllamaClient, validate_gemini_input
+# NOTE: GeminiClient is commented out in ai_clients.py
+# Uncomment it there and below to use Gemini for merchant enrichment
+# from .ai_clients import GeminiClient, OllamaClient, validate_gemini_input
+from .ai_clients import OllamaClient  # Using Ollama for BOTH merchant enrichment AND categorization
 
 
 class TransactionBatch:
@@ -49,8 +52,11 @@ class BatchProcessor:
     
     def _init_clients(self):
         """Lazy initialization of AI clients."""
-        if self.gemini_client is None:
-            self.gemini_client = GeminiClient()
+        # Currently using ONLY Ollama for both merchant enrichment and categorization
+        # To use Gemini: Uncomment GeminiClient in ai_clients.py and uncomment below
+        # if self.gemini_client is None:
+        #     self.gemini_client = GeminiClient()
+        
         if self.ollama_client is None:
             self.ollama_client = OllamaClient()
     
@@ -151,14 +157,17 @@ class BatchProcessor:
                 batch_sanitized = sanitized_descriptions[start_idx:end_idx]
                 batch_amounts = batch_df['amount'].tolist()
                 
-                # ===== STEP 3a: Gemini enrichment (cloud, sanitized only) =====
-                print(f"    ☁️  Enriching merchants via Gemini (cloud)...")
+                # ===== STEP 3a: Merchant enrichment (LOCAL via Ollama) =====
+                print(f"    💻 Enriching merchants via Ollama (local)...")
                 
-                # SECURITY: Validate before sending to cloud
-                validate_gemini_input(batch_sanitized)
+                # NOTE: WE'RE USING OLLAMA INSTEAD OF GEMINI
+                # To switch to Gemini: Uncomment GeminiClient and update this section:
+                # validate_gemini_input(batch_sanitized)  # Security validation
+                # enriched_data = await self.gemini_client.enrich_merchant_batch(batch_sanitized)
                 
-                enriched_data = await self.gemini_client.enrich_merchant_batch(batch_sanitized)
-                print(f"    ✓ Enriched {len(enriched_data)} merchants")
+                # Current: Using Ollama for merchant enrichment (100% local)
+                enriched_data = await self.ollama_client.enrich_merchant_batch(batch_sanitized)
+                print(f"    ✓ Enriched {len(enriched_data)} merchants (locally)")
                 
                 # ===== STEP 3b: Ollama categorization (local) =====
                 print(f"    💻 Categorizing via Ollama (local)...")

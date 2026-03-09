@@ -25,12 +25,13 @@ class BankTemplate(ABC):
     """
     
     @abstractmethod
-    def extract_transactions(self, file_path: str) -> pd.DataFrame:
+    def extract_transactions(self, file_path: str, password: Optional[str] = None) -> pd.DataFrame:
         """
         Extract transactions from a bank statement file.
         
         Args:
             file_path: Path to the PDF or CSV file
+            password: Optional password for protected PDFs
             
         Returns:
             DataFrame with standardized columns:
@@ -43,12 +44,13 @@ class BankTemplate(ABC):
         pass
     
     @abstractmethod
-    def detect(self, file_path: str) -> bool:
+    def detect(self, file_path: str, password: Optional[str] = None) -> bool:
         """
         Detect if this template matches the given file.
         
         Args:
             file_path: Path to the file
+            password: Optional password for protected PDFs
             
         Returns:
             True if this template can parse the file
@@ -104,16 +106,16 @@ class SBITemplate(BankTemplate):
     - Transaction date, Value date, Description, Ref No, Debit, Credit, Balance
     """
     
-    def detect(self, file_path: str) -> bool:
+    def detect(self, file_path: str, password: Optional[str] = None) -> bool:
         """Detect SBI format by looking for bank name in header."""
         try:
-            with pdfplumber.open(file_path) as pdf:
+            with pdfplumber.open(file_path, password=password) as pdf:
                 first_page_text = pdf.pages[0].extract_text()
                 return 'STATE BANK OF INDIA' in first_page_text.upper()
         except:
             return False
     
-    def extract_transactions(self, file_path: str) -> pd.DataFrame:
+    def extract_transactions(self, file_path: str, password: Optional[str] = None) -> pd.DataFrame:
         """
         Extract transactions from SBI PDF statement.
         
@@ -122,7 +124,7 @@ class SBITemplate(BankTemplate):
         """
         transactions = []
         
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_path, password=password) as pdf:
             for page in pdf.pages:
                 # Extract table data
                 table = page.extract_table()
@@ -194,7 +196,7 @@ class ICICITemplate(BankTemplate):
     Handles both PDF and CSV formats from ICICI Bank.
     """
     
-    def detect(self, file_path: str) -> bool:
+    def detect(self, file_path: str, password: Optional[str] = None) -> bool:
         """Detect ICICI format."""
         if file_path.endswith('.csv'):
             try:
@@ -206,19 +208,19 @@ class ICICITemplate(BankTemplate):
                 return False
         else:
             try:
-                with pdfplumber.open(file_path) as pdf:
+                with pdfplumber.open(file_path, password=password) as pdf:
                     first_page_text = pdf.pages[0].extract_text()
                     return 'ICICI BANK' in first_page_text.upper()
             except:
                 return False
     
-    def extract_transactions(self, file_path: str) -> pd.DataFrame:
+    def extract_transactions(self, file_path: str, password: Optional[str] = None) -> pd.DataFrame:
         """Extract transactions from ICICI statement (PDF or CSV)."""
         
         if file_path.endswith('.csv'):
             return self._extract_from_csv(file_path)
         else:
-            return self._extract_from_pdf(file_path)
+            return self._extract_from_pdf(file_path, password)
     
     def _extract_from_csv(self, file_path: str) -> pd.DataFrame:
         """Extract from ICICI CSV format."""
@@ -290,11 +292,11 @@ class ICICITemplate(BankTemplate):
         
         return pd.DataFrame(transactions)
     
-    def _extract_from_pdf(self, file_path: str) -> pd.DataFrame:
+    def _extract_from_pdf(self, file_path: str, password: Optional[str] = None) -> pd.DataFrame:
         """Extract from ICICI PDF format."""
         transactions = []
         
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_path, password=password) as pdf:
             for page in pdf.pages:
                 table = page.extract_table()
                 
@@ -356,16 +358,16 @@ class HDFCTemplate(BankTemplate):
     Handles HDFC PDF statement format.
     """
     
-    def detect(self, file_path: str) -> bool:
+    def detect(self, file_path: str, password: Optional[str] = None) -> bool:
         """Detect HDFC format."""
         try:
-            with pdfplumber.open(file_path) as pdf:
+            with pdfplumber.open(file_path, password=password) as pdf:
                 first_page_text = pdf.pages[0].extract_text()
                 return 'HDFC BANK' in first_page_text.upper()
         except:
             return False
     
-    def extract_transactions(self, file_path: str) -> pd.DataFrame:
+    def extract_transactions(self, file_path: str, password: Optional[str] = None) -> pd.DataFrame:
         """
         Extract transactions from HDFC PDF statement.
         
@@ -374,7 +376,7 @@ class HDFCTemplate(BankTemplate):
         """
         transactions = []
         
-        with pdfplumber.open(file_path) as pdf:
+        with pdfplumber.open(file_path, password=password) as pdf:
             for page in pdf.pages:
                 table = page.extract_table()
                 
@@ -440,11 +442,11 @@ class GenericCSVTemplate(BankTemplate):
     Requires manual column mapping from the user.
     """
     
-    def detect(self, file_path: str) -> bool:
+    def detect(self, file_path: str, password: Optional[str] = None) -> bool:
         """Generic CSV always returns True as fallback."""
         return file_path.endswith('.csv')
     
-    def extract_transactions(self, file_path: str, column_mapping: Optional[Dict[str, str]] = None) -> pd.DataFrame:
+    def extract_transactions(self, file_path: str, password: Optional[str] = None, column_mapping: Optional[Dict[str, str]] = None) -> pd.DataFrame:
         """
         Extract with user-provided column mapping.
         
@@ -530,22 +532,44 @@ class TemplateDetector:
             HDFCTemplate(),
         ]
     
-    def detect_template(self, file_path: str) -> BankTemplate:
+    def detect_template(self, file_path: str, password: Optional[str] = None) -> BankTemplate:
         """
         Auto-detect the appropriate template for a file.
         
         Args:
             file_path: Path to the statement file
+            password: Optional password for protected PDFs
             
         Returns:
-            Matched BankTemplate instance or GenericCSVTemplate as fallback
+            Matched BankTemplate instance or GenericCSVTemplate as fallback (if CSV)
         """
+        # First check if PDF is encrypted and password is missing
+        if file_path.lower().endswith('.pdf'):
+            try:
+                import pdfplumber
+                with pdfplumber.open(file_path, password=password) as pdf:
+                    pass
+            except Exception as e:
+                error_msg = str(e).lower()
+                if "password" in error_msg or "encrypted" in error_msg:
+                    if not password:
+                        raise ValueError("NEEDS_PASSWORD: This PDF is password protected.")
+                    else:
+                        raise ValueError("INVALID_PASSWORD: The password provided is incorrect.")
+                raise ValueError(f"Could not read PDF file: {str(e)}")
+
         for template in self.templates:
-            if template.detect(file_path):
-                return template
-        
-        # Fallback for unknown format
-        return GenericCSVTemplate()
+            try:
+                if template.detect(file_path, password=password):
+                    return template
+            except Exception:
+                continue
+
+        # Fallback for unknown format (only if CSV)
+        if file_path.lower().endswith('.csv'):
+            return GenericCSVTemplate()
+            
+        raise ValueError("Unsupported bank or statement format. Currently supporting SBI, ICICI, and HDFC PDFs.")
     
     def get_template_name(self, template: BankTemplate) -> str:
         """Get human-readable name of detected template."""

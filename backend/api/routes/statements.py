@@ -27,6 +27,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/upload")
 async def upload_statement(
     file: UploadFile = File(...),
+    password: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -70,7 +71,7 @@ async def upload_statement(
         
         # Process the statement
         processor = BatchProcessor()
-        result = await processor.process_statement_pdf(file_path)
+        result = await processor.process_statement_pdf(file_path, password=password)
         
         # Check if processing failed
         if result['processed_successfully'] == 0:
@@ -128,13 +129,26 @@ async def upload_statement(
         if os.path.exists(file_path):
             os.remove(file_path)
         
-        raise HTTPException(status_code=500, detail=f"Processing error: {str(e)}")
+        error_msg = str(e)
+        if "NEEDS_PASSWORD" in error_msg:
+            return JSONResponse(
+                status_code=401,
+                content={"status": "needs_password", "message": "This PDF is password protected."}
+            )
+        elif "INVALID_PASSWORD" in error_msg:
+            return JSONResponse(
+                status_code=401,
+                content={"status": "invalid_password", "message": "The password provided is incorrect."}
+            )
+            
+        raise HTTPException(status_code=500, detail=f"Processing error: {error_msg}")
 
 
 @router.post("/upload-with-mapping")
 async def upload_with_mapping(
     file_id: str = Form(...),
     column_mapping: str = Form(...),  # JSON string
+    password: Optional[str] = Form(None),
     db: Session = Depends(get_db)
 ):
     """
@@ -157,7 +171,7 @@ async def upload_with_mapping(
         
         # Process with mapping
         processor = BatchProcessor()
-        result = await processor.process_with_mapping(file_path, mapping)
+        result = await processor.process_with_mapping(file_path, mapping, password=password)
         
         if result['processed_successfully'] == 0:
             raise HTTPException(

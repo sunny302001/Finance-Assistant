@@ -20,6 +20,7 @@ from core.financial_calc import (
     compare_to_50_30_20
 )
 from core.ai_clients import OllamaClient
+from core.safe_dates import parse_date_safe
 
 router = APIRouter()
 
@@ -36,7 +37,7 @@ class BudgetAnalysisResponse(BaseModel):
 
 @router.get("/budget-analysis", response_model=BudgetAnalysisResponse)
 async def get_budget_analysis(
-    income: float = Query(..., description="Total income for the period"),
+    income: float = Query(0, description="Total income for the period"),
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     include_advice: bool = True,
@@ -67,8 +68,8 @@ async def get_budget_analysis(
     if not start_date:
         start_date = (datetime.now() - timedelta(days=30)).isoformat()
     
-    start_dt = datetime.fromisoformat(start_date)
-    end_dt = datetime.fromisoformat(end_date)
+    start_dt = parse_date_safe(start_date, "start_date")
+    end_dt = parse_date_safe(end_date, "end_date")
     
     # Get all transactions in period
     transactions = transaction_model.get_transactions(
@@ -183,8 +184,8 @@ async def get_category_breakdown(
     Returns data formatted for Recharts PieChart.
     """
     
-    start_dt = datetime.fromisoformat(start_date) if start_date else None
-    end_dt = datetime.fromisoformat(end_date) if end_date else None
+    start_dt = parse_date_safe(start_date, "start_date")
+    end_dt = parse_date_safe(end_date, "end_date")
     
     totals = transaction_model.get_total_by_category(db, start_dt, end_dt)
     
@@ -233,8 +234,8 @@ async def get_spending_overview(
         }
     """
     
-    start_dt = datetime.fromisoformat(start_date) if start_date else None
-    end_dt = datetime.fromisoformat(end_date) if end_date else None
+    start_dt = parse_date_safe(start_date, "start_date")
+    end_dt = parse_date_safe(end_date, "end_date")
     
     # Get all transactions
     transactions = transaction_model.get_transactions(

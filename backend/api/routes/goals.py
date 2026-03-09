@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from models.database import get_db
 from models import budget_goal as goal_model
 from core.financial_calc import split_goal_amount
+from core.safe_dates import parse_date_safe
 
 router = APIRouter()
 
@@ -81,9 +82,13 @@ async def create_goal(
     
     goal_data = goal.dict()
     
+    # Boundary checks
+    if goal_data['target_amount'] <= 0:
+        raise HTTPException(status_code=400, detail="Target amount must be positive")
+    
     # Parse deadline if provided
     if goal_data.get('deadline'):
-        goal_data['deadline'] = datetime.fromisoformat(goal_data['deadline'])
+        goal_data['deadline'] = parse_date_safe(goal_data['deadline'], "deadline")
     
     new_goal = goal_model.create_goal(db, goal_data)
     return new_goal.to_dict()
@@ -112,11 +117,18 @@ async def update_goal(
 ):
     """Update a goal."""
     
+    # Check for negative value hacks
+    if updates.target_amount is not None and updates.target_amount <= 0:
+        raise HTTPException(status_code=400, detail="Target amount must be positive")
+        
+    if updates.current_amount is not None and updates.current_amount < 0:
+        raise HTTPException(status_code=400, detail="Current amount cannot be negative")
+
     update_data = {k: v for k, v in updates.dict().items() if v is not None}
     
     # Parse deadline if provided
     if 'deadline' in update_data and update_data['deadline']:
-        update_data['deadline'] = datetime.fromisoformat(update_data['deadline'])
+        update_data['deadline'] = parse_date_safe(update_data['deadline'], "deadline")
     
     updated_goal = goal_model.update_goal(db, goal_id, **update_data)
     

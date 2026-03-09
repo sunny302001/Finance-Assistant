@@ -29,10 +29,17 @@ if not exist ".env" (
 
 echo Starting FinanceFlow API Server...
 echo.
+
+set PYTHON_EXE=python
+if exist "venv\Scripts\python.exe" (
+    echo Using virtual environment...
+    set PYTHON_EXE=venv\Scripts\python.exe
+)
+
 echo API will be available at: http://localhost:8000
 echo API Documentation: http://localhost:8000/docs
 echo.
 echo Press Ctrl+C to stop the server
 echo.
 
-python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+%PYTHON_EXE% -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000

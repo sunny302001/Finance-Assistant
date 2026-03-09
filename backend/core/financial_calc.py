@@ -266,7 +266,7 @@ def split_goal_amount(
         
         for goal in goals_in_group:
             goal_id = goal.get('id') or goal.get('name')
-            allocations[goal_id] = per_goal
+            allocations[goal_id] = round(per_goal, 2)
     
     return allocations
 

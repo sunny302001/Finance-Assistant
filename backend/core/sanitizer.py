@@ -68,10 +68,11 @@ def sanitize_transaction_string(raw_text: str) -> str:
         r'\bTX\s*#?\s*\d+\b',                  # TX #12345
         r'\bREF:?\s*[A-Z0-9]+\b',              # REF:ABC123
         r'\bTXN\s*#?\s*\d+\b',                 # TXN 456789
-        r'\b(IMPS|NEFT|RTGS)[/-]?[A-Z]?\d+\b', # IMPS/123456, NEFT-N123456
+        r'\b(IMPS|NEFT|RTGS|UPI)[/-]?[A-Z0-9]?\d+\b', # IMPS/123456, NEFT-N123456, UPI-1234
         r'\bUTR\s*#?\s*[A-Z0-9]+\b',           # UTR #ABC123
         r'\bRRN\s*#?\s*\d+\b',                 # RRN 123456
         r'\bORDER\s*#?\s*\d+\b',               # ORDER #123
+        r'\bVPA\s*[:\s]*[A-Z0-9.]+@[A-Z]+\b',  # VPA: someone@upi
     ]
     for pattern in transaction_id_patterns:
         text = re.sub(pattern, '', text)
@@ -104,6 +105,7 @@ def sanitize_transaction_string(raw_text: str) -> str:
         r'\bSTORE\s*#?\s*\d+\b',               # Store #123
         r'\bLOC\s*#?\s*\d+\b',                 # LOC 456
         r'\bBRANCH\s*#?\s*\d+\b',              # BRANCH 123
+        r'\b[A-Z0-9._%+-]+@(OK|AXIS|SBI|HDFC|ICICI|YBL|UPI|PAYTM|GOOGL|OKSBI|OKAXIS|OKHDFC|OKICICI)\b', # UPI IDs
     ]
     for pattern in location_patterns:
         text = re.sub(pattern, '', text)

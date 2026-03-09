@@ -63,6 +63,7 @@ class BatchProcessor:
     async def process_statement_pdf(
         self,
         file_path: str,
+        password: Optional[str] = None,
         column_mapping: Optional[Dict[str, str]] = None
     ) -> Dict[str, any]:
         """
@@ -106,16 +107,16 @@ class BatchProcessor:
             # ===== STEP 1: Extract raw transactions =====
             print(f"📄 Step 1: Extracting transactions from {file_path}")
             
-            template = self.template_detector.detect_template(file_path)
+            template = self.template_detector.detect_template(file_path, password=password)
             result['bank_name'] = self.template_detector.get_template_name(template)
             
             print(f"✓ Detected bank: {result['bank_name']}")
             
             # Extract transactions
             if column_mapping:
-                raw_df = template.extract_transactions(file_path, column_mapping)
+                raw_df = template.extract_transactions(file_path, password=password, column_mapping=column_mapping)
             else:
-                raw_df = template.extract_transactions(file_path)
+                raw_df = template.extract_transactions(file_path, password=password)
             
             if raw_df.empty:
                 result['errors'].append("No transactions found in file")
@@ -253,7 +254,8 @@ class BatchProcessor:
     async def process_with_mapping(
         self,
         file_path: str,
-        column_mapping: Dict[str, str]
+        column_mapping: Dict[str, str],
+        password: Optional[str] = None
     ) -> Dict[str, any]:
         """
         Process a file with user-provided column mapping.
@@ -261,16 +263,17 @@ class BatchProcessor:
         Args:
             file_path: Path to CSV file
             column_mapping: Dict mapping standard fields to CSV columns
+            password: Optional password for protected PDFs
         
         Returns:
             Same format as process_statement_pdf()
         """
         
-        return await self.process_statement_pdf(file_path, column_mapping)
+        return await self.process_statement_pdf(file_path, password=password, column_mapping=column_mapping)
 
 
 # Convenience function for single-file processing
-async def process_single_statement(file_path: str) -> Dict[str, any]:
+async def process_single_statement(file_path: str, password: Optional[str] = None) -> Dict[str, any]:
     """
     Process a single bank statement file.
     
@@ -278,13 +281,14 @@ async def process_single_statement(file_path: str) -> Dict[str, any]:
     
     Args:
         file_path: Path to PDF or CSV file
+        password: Optional password for protected PDFs
     
     Returns:
         Processing results dict
     """
     
     processor = BatchProcessor()
-    return await processor.process_statement_pdf(file_path)
+    return await processor.process_statement_pdf(file_path, password=password)
 
 
 # Example usage

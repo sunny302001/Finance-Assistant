@@ -348,7 +348,7 @@ Return ONLY the JSON array, no explanations or additional text."""
             result = response.json()
             
             # Parse response
-            categories = self._parse_categorization_response(result['response'], len(merchants))
+            categories = await self._parse_categorization_response(result['response'], len(merchants), merchants, business_types)
             
             return categories
         
@@ -389,7 +389,7 @@ Return ONLY a JSON array with exactly {len(merchants)} category names in the sam
 
 Return ONLY the JSON array, no explanations."""
     
-    def _parse_categorization_response(self, response_text: str, expected_count: int) -> List[str]:
+    async def _parse_categorization_response(self, response_text: str, expected_count: int, merchants: List[str] = None, business_types: List[str] = None) -> List[str]:
         """Parse Ollama's categorization response."""
         try:
             # Extract JSON from response
@@ -421,8 +421,8 @@ Return ONLY the JSON array, no explanations."""
         
         except Exception as e:
             print(f"Failed to parse Ollama response: {e}")
-            return self._fallback_categorization([], [])
-    
+            return self._fallback_categorization(merchants or [], business_types or [])
+
     def _fallback_categorization(self, merchants: List[str], business_types: List[str]) -> List[str]:
         """Basic rule-based fallback categorization."""
         

@@ -12,6 +12,7 @@ from pydantic import BaseModel
 
 from models.database import get_db
 from models import transaction as transaction_model
+from core.safe_dates import parse_date_safe
 
 router = APIRouter()
 
@@ -59,8 +60,8 @@ async def get_transactions(
     """
     
     # Parse dates if provided
-    start_dt = datetime.fromisoformat(start_date) if start_date else None
-    end_dt = datetime.fromisoformat(end_date) if end_date else None
+    start_dt = parse_date_safe(start_date, "start_date")
+    end_dt = parse_date_safe(end_date, "end_date")
     
     transactions = transaction_model.get_transactions(
         db=db,
@@ -123,8 +124,8 @@ async def get_category_summary(
         }
     """
     
-    start_dt = datetime.fromisoformat(start_date) if start_date else None
-    end_dt = datetime.fromisoformat(end_date) if end_date else None
+    start_dt = parse_date_safe(start_date, "start_date")
+    end_dt = parse_date_safe(end_date, "end_date")
     
     totals = transaction_model.get_total_by_category(db, start_dt, end_dt)
     

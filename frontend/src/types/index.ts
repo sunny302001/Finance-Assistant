@@ -26,13 +26,19 @@ export interface Category {
 export interface BudgetGoal {
   id: number
   name: string
+  description?: string
   target_amount: number
   current_amount: number
   priority: number
   deadline?: string
+  is_active: boolean
   is_completed: boolean
-  created_at: string
-  updated_at: string
+  color: string
+  icon: string
+  progress_percentage: number
+  remaining_amount: number
+  days_remaining?: number
+  created_at?: string
 }
 
 export interface BudgetAnalysis {
@@ -52,17 +58,18 @@ export interface BudgetAnalysis {
 }
 
 export interface MonthlyTrend {
-  month: string
-  total_income: number
-  total_expenses: number
-  savings: number
+  [category: string]: number[] | string[]
+  months: string[]
 }
 
 export interface CategoryBreakdown {
-  name: string
-  value: number
-  percentage: number
-  color: string
+  data: Array<{
+    name: string
+    value: number
+    percentage: number
+    color: string
+  }>
+  total: number
 }
 
 export interface SpendingOverview {

@@ -3,10 +3,11 @@ import { database } from '../database';
 import { Transaction } from '../database/models/Transaction';
 import MlkitOcr from 'react-native-mlkit-ocr';
 import { RawTransaction } from './parsers/types';
+import { CategorizerService } from './CategorizerService';
 
 /**
  * IngestionService
- * Handles the complete on-device pipeline: OCR -> Regex Parsing -> WatermelonDB
+ * Handles the complete on-device pipeline: OCR -> Regex Parsing -> Categorize -> WatermelonDB
  */
 export class IngestionService {
   /**
@@ -86,22 +87,43 @@ export class IngestionService {
 
   /**
    * Step 3: Batch Save Transactions to WatermelonDB
+   *
+   * Before saving, each transaction's description is run through the
+   * CategorizerService (Rules Engine). If a keyword match is found the
+   * correct category_id is attached; otherwise it falls back to
+   * "Miscellaneous".
    */
   static async saveToDatabase(transactions: RawTransaction[]): Promise<void> {
-    console.log(`[Ingestion] Saving ${transactions.length} transactions to database...`);
+    console.log(`[Ingestion] Categorizing & saving ${transactions.length} transactions...`);
     try {
+      // ── Categorize all descriptions in a single pass ───────────────────────
+      const descriptions = transactions.map((t) => t.description);
+      const categoryMap = await CategorizerService.categorizeBatch(descriptions);
+
+      console.log(
+        `[Ingestion] Categorized ${categoryMap.size}/${transactions.length} transactions.`,
+      );
+
+      // ── Batch write to WatermelonDB ────────────────────────────────────────
       await database.write(async () => {
-        const transactionsToCreate = transactions.map(raw => 
-          database.get<Transaction>('transactions').prepareCreate(tx => {
+        const transactionsToCreate = transactions.map((raw, index) =>
+          database.get<Transaction>('transactions').prepareCreate((tx) => {
             tx.amount = raw.amount;
             tx.date = raw.date;
             tx.description = raw.description;
             tx.rawText = raw.rawText;
             tx.isSubscription = false;
-          })
+
+            // Attach category if the rules engine found a match
+            const catId = categoryMap.get(index);
+            if (catId) {
+              tx.categoryId = catId;
+            }
+          }),
         );
         await database.batch(...transactionsToCreate);
       });
+
       console.log('[Ingestion] Batch save successful.');
     } catch (error) {
       console.error('[Ingestion] Database save failed:', error);
@@ -132,7 +154,7 @@ export class IngestionService {
       throw new Error("No transactions were found. Ensure the document is a supported bank statement.");
     }
 
-    onProgress?.("Saving to Database...");
+    onProgress?.("Categorizing & Saving...");
     await this.saveToDatabase(transactions);
 
     return transactions.length;

@@ -3,7 +3,10 @@ import { field, date, readonly, text, children } from '@nozbe/watermelondb/decor
 
 /**
  * Category Model
- * Represents a spending category: e.g. "Coffee" → type: "want"
+ * Represents a spending/income category.
+ *
+ *   isNeed = true  → Essential (Housing, Transport, Utilities, etc.)
+ *   isNeed = false → Discretionary (Subscriptions, Miscellaneous, etc.)
  */
 export class Category extends Model {
   static table = 'categories';
@@ -13,8 +16,10 @@ export class Category extends Model {
   };
 
   @text('name') name!: string;
-  /** 'need' | 'want' | 'savings' */
-  @text('type') type!: string;
+
+  /** true = Need (essential), false = Want (discretionary) */
+  @field('is_need') isNeed!: boolean;
+
   @field('icon') icon?: string;
 
   @readonly @date('created_at') createdAt!: Date;

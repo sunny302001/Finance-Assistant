@@ -5,15 +5,15 @@ import { appSchema, tableSchema } from '@nozbe/watermelondb';
  * Defines all database tables for the Finance Assistant app.
  */
 export const schema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
     // ─── Categories ──────────────────────────────────────────────────────────
     tableSchema({
       name: 'categories',
       columns: [
         { name: 'name', type: 'string' },
-        // type: 'need' | 'want' | 'savings'
-        { name: 'type', type: 'string' },
+        /** true = Need (essential), false = Want (discretionary) */
+        { name: 'is_need', type: 'boolean' },
         { name: 'icon', type: 'string', isOptional: true },
         { name: 'created_at', type: 'number' },
         { name: 'updated_at', type: 'number' },
